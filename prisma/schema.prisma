@@ -12,6 +12,9 @@ enum Role {
   TEACHER
   ADMIN
   SUPER_ADMIN
+  FINANCE
+  BOARDING_MASTER
+  BOARDING_MISTRESS
 }
 
 enum UserStatus {
@@ -44,6 +47,7 @@ model User {
   status UserStatus @default(ACTIVE)
   schoolDivision String?
   profileImageUrl String?
+  lastSeenAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   student Student?
@@ -52,6 +56,7 @@ model User {
   gradesEntered Grade[]
   sentMessages Message[] @relation("MessageSender")
   receivedMessages Message[] @relation("MessageRecipient")
+  verifiedFeePayments FeePayment[] @relation("FeePaymentVerifier")
 }
 
 model Student {
@@ -62,13 +67,18 @@ model Student {
   guardianName String?
   guardianPhone String?
   guardianEmail String?
+  dateOfBirth DateTime?
+  gender String?
   boardingStatus String?
+  dormitoryName String?
+  bedNumber String?
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   classGroup ClassGroup? @relation(fields: [classGroupId], references: [id])
   classGroupId String?
   attendance Attendance[]
   grades Grade[]
   feeEntries FeeEntry[]
+  feePayments FeePayment[]
   createdAt DateTime @default(now())
 }
 
@@ -86,6 +96,7 @@ model StudentApplication {
   id String @id @default(cuid())
   learnerName String
   learnerDateOfBirth String?
+  gender String?
   requestedGrade String
   division String
   previousSchool String?
@@ -206,6 +217,51 @@ model FeeEntry {
   dueDate DateTime?
   note String?
   createdAt DateTime @default(now())
+}
+
+model FeeSchedule {
+  id String @id @default(cuid())
+  division String
+  yearLevel String
+  academicYear String
+  term String
+  published Boolean @default(false)
+  sections FeeStructureSection[]
+  createdById String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([division, yearLevel, academicYear, term])
+  @@index([division, yearLevel, published])
+}
+
+model FeeStructureSection {
+  id String @id @default(cuid())
+  scheduleId String
+  schedule FeeSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  label String
+  amount Decimal @db.Decimal(10,2)
+  sortOrder Int @default(0)
+  @@unique([scheduleId, label])
+}
+
+model FeePayment {
+  id String @id @default(cuid())
+  studentId String
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  academicYear String
+  term String
+  purpose String
+  amount Decimal @db.Decimal(10,2)
+  transactionReference String? @unique
+  status String @default("PENDING")
+  note String?
+  paidAt DateTime?
+  verifiedById String?
+  verifiedBy User? @relation("FeePaymentVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([studentId, academicYear, term])
+  @@index([status, createdAt])
 }
 
 model GalleryImage {
