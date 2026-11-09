@@ -1,0 +1,244 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  TEACHER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT
+  EXCUSED
+}
+
+model User {
+  id String @id @default(cuid())
+  name String
+  email String @unique
+  passwordHash String
+  role Role
+  status UserStatus @default(ACTIVE)
+  profileImageUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  student Student?
+  teacher Teacher?
+  attendanceMarks Attendance[] @relation("MarkedBy")
+  gradesEntered Grade[]
+  sentMessages Message[] @relation("MessageSender")
+  receivedMessages Message[] @relation("MessageRecipient")
+}
+
+model Student {
+  id String @id @default(cuid())
+  admissionNumber String @unique
+  userId String @unique
+  yearLevel String?
+  guardianName String?
+  guardianPhone String?
+  boardingStatus String?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classGroup ClassGroup? @relation(fields: [classGroupId], references: [id])
+  classGroupId String?
+  attendance Attendance[]
+  grades Grade[]
+  feeEntries FeeEntry[]
+  createdAt DateTime @default(now())
+}
+
+model Teacher {
+  id String @id @default(cuid())
+  staffNumber String? @unique
+  userId String @unique
+  subjects String[] @default([])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classTeaching ClassTeaching[]
+  createdAt DateTime @default(now())
+}
+
+model ClassGroup {
+  id String @id @default(cuid())
+  name String @unique
+  yearLevel String?
+  division String @default("PRIMARY")
+  students Student[]
+  subjects Subject[]
+  classTeaching ClassTeaching[]
+  createdAt DateTime @default(now())
+}
+
+model Subject {
+  id String @id @default(cuid())
+  name String
+  classGroupId String
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
+  grades Grade[]
+  classTeaching ClassTeaching[]
+  createdAt DateTime @default(now())
+  @@unique([name, classGroupId])
+}
+
+model ClassTeaching {
+  id String @id @default(cuid())
+  classGroupId String
+  subjectId String
+  teacherId String
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@unique([classGroupId, subjectId])
+}
+
+model Attendance {
+  id String @id @default(cuid())
+  studentId String
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  date DateTime
+  status AttendanceStatus
+  note String?
+  markedById String
+  markedBy User @relation("MarkedBy", fields: [markedById], references: [id])
+  createdAt DateTime @default(now())
+  @@unique([studentId, date])
+}
+
+model Grade {
+  id String @id @default(cuid())
+  studentId String
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subjectId String
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  assessment String
+  score Decimal @db.Decimal(7,2)
+  maxScore Decimal @db.Decimal(7,2)
+  performanceLevel String?
+  teacherComment String?
+  term String?
+  enteredById String
+  enteredBy User @relation(fields: [enteredById], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model HeroSlide {
+  id String @id @default(cuid())
+  imageUrl String
+  title String
+  caption String?
+  division String?
+  altText String?
+  published Boolean @default(false)
+  sortOrder Int @default(0)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
+
+model FeeItem {
+  id String @id @default(cuid())
+  label String
+  displayAmount String
+  category String @default("School fees")
+  published Boolean @default(false)
+  sortOrder Int @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+model FeeDocument {
+  id String @id @default(cuid())
+  url String
+  fileName String
+  published Boolean @default(false)
+  updatedAt DateTime @updatedAt
+}
+
+model FeeEntry {
+  id String @id @default(cuid())
+  studentId String
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  term String
+  amountDue Decimal @db.Decimal(10,2)
+  amountPaid Decimal @default(0) @db.Decimal(10,2)
+  dueDate DateTime?
+  note String?
+  createdAt DateTime @default(now())
+}
+
+model GalleryImage {
+  id String @id @default(cuid())
+  imageUrl String
+  altText String?
+  caption String?
+  description String?
+  category String @default("School life")
+  mediaType String @default("IMAGE")
+  published Boolean @default(false)
+  sortOrder Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SitePage {
+  id String @id @default(cuid())
+  slug String @unique
+  title String
+  content String
+  published Boolean @default(false)
+  updatedById String?
+  updatedAt DateTime @updatedAt
+}
+
+model Announcement {
+  id String @id @default(cuid())
+  title String
+  body String
+  kind String @default("NOTICE")
+  audience String @default("ALL")
+  linkUrl String?
+  mediaUrl String?
+  startsAt DateTime?
+  endsAt DateTime?
+  published Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SchoolEvent {
+  id String @id @default(cuid())
+  title String
+  description String?
+  startsAt DateTime
+  endsAt DateTime?
+  location String?
+  linkUrl String?
+  published Boolean @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Message {
+  id String @id @default(cuid())
+  senderId String
+  recipientId String?
+  subject String?
+  body String
+  readAt DateTime?
+  createdAt DateTime @default(now())
+  sender User @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient User? @relation("MessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  @@index([recipientId, createdAt])
+  @@index([senderId, createdAt])
+}
