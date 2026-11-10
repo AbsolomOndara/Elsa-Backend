@@ -56,6 +56,7 @@ model User {
   gradesEntered Grade[]
   sentMessages Message[] @relation("MessageSender")
   receivedMessages Message[] @relation("MessageRecipient")
+  messageStates MessageUserState[] @relation("MessageStateUser")
   verifiedFeePayments FeePayment[] @relation("FeePaymentVerifier")
 }
 
@@ -325,6 +326,19 @@ model Message {
   createdAt DateTime @default(now())
   sender User @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
   recipient User? @relation("MessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  userStates MessageUserState[]
   @@index([recipientId, createdAt])
   @@index([senderId, createdAt])
+}
+
+model MessageUserState {
+  id String @id @default(cuid())
+  messageId String
+  userId String
+  readAt DateTime?
+  deletedAt DateTime?
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user User @relation("MessageStateUser", fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([messageId, userId])
+  @@index([userId, readAt])
 }
